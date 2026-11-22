@@ -105,6 +105,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         FilledButton.icon(icon: const Icon(Icons.save), label: const Text('حفظ الإعدادات'), onPressed: _saveSettings),
         const Divider(height: 32),
         ListTile(
+          leading: const Icon(Icons.image),
+          title: const Text('شعار النظام'),
+          subtitle: const Text('اختر من المكتبة أو ارفع شعارًا خاصًا — يظهر أعلى الرئيسية وفي طباعة العقد'),
+          onTap: _openLogoLibrary,
+        ),
+        const Divider(height: 32),
+        ListTile(
           leading: const Icon(Icons.backup),
           title: const Text('نسخة احتياطية كاملة (مشفرة بكلمة سر)'),
           onTap: () async {
@@ -126,6 +133,87 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onTap: _openDevSection,
         ),
       ]),
+    );
+  }
+
+  /// مكتبة الشعارات: شعارات مدمجة + رفع شعار مخصص (يُحفظ base64 في الإعدادات).
+  Future<void> _openLogoLibrary() async {
+    final repo = context.read<SettingsRepo>();
+    final current = await repo.get('logo_builtin');
+    final customB64 = await repo.get('logo_data');
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('مكتبة الشعارات'),
+        content: SizedBox(
+          width: 360,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Wrap(spacing: 12, runSpacing: 12, children: [
+              for (final e in const {
+                'store': Icons.storefront,
+                'receipt': Icons.receipt_long,
+                'payments': Icons.payments,
+                'account_balance': Icons.account_balance,
+                'handshake': Icons.handshake,
+                'home_work': Icons.home_work,
+              }.entries)
+                InkWell(
+                  onTap: () async {
+                    await repo.set('logo_builtin', e.key);
+                    await repo.set('logo_data', '');
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: current == e.key ? Colors.teal.shade100 : Colors.grey.shade200,
+                    ),
+                    child: Icon(e.value, size: 32),
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 16),
+            if (customB64 != null && customB64.isNotEmpty)
+              Column(children: [
+                const Text('الشعار المخصص الحالي:'),
+                const SizedBox(height: 8),
+                Image.memory(base64Decode(customB64), height: 64),
+                const SizedBox(height: 8),
+              ]),
+            FilledButton.icon(
+              icon: const Icon(Icons.upload),
+              label: const Text('رفع شعار خاص'),
+              onPressed: () async {
+                final picked = await FilePicker.platform
+                    .pickFiles(type: FileType.image, withData: true);
+                final bytes = picked?.files.first.bytes;
+                if (bytes == null) return;
+                if (bytes.length > 512 * 1024) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                        backgroundColor: Colors.red,
+                        content: Text('الصورة كبيرة — الحد الأقصى 512 كيلوبايت')));
+                  }
+                  return;
+                }
+                await repo.set('logo_data', base64Encode(bytes));
+                await repo.set('logo_builtin', '');
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+            ),
+            TextButton(
+              onPressed: () async {
+                await repo.set('logo_builtin', '');
+                await repo.set('logo_data', '');
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('بدون شعار'),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 

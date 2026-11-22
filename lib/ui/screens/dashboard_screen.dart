@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../widgets/system_logo.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -30,7 +32,13 @@ class DashboardScreen extends StatelessWidget {
             ('عقود متأخرة', '${stats['lateContracts']?.toInt() ?? 0}', Icons.warning, Colors.red),
             ('مبالغ المتأخرات', _money.format(stats['lateAmount']), Icons.money_off, Colors.redAccent),
           ];
-          return GridView.count(
+          return Column(children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: SystemLogo(size: 56),
+            ),
+            Expanded(
+              child: GridView.count(
             padding: const EdgeInsets.all(16),
             crossAxisCount: MediaQuery.of(context).size.width >= 800 ? 3 : 2,
             childAspectRatio: 1.6,
@@ -49,7 +57,9 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ))
                 .toList(),
-          );
+              ),
+            ),
+          ]);
         },
       ),
     );

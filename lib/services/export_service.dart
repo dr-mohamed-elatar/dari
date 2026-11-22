@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -76,6 +77,17 @@ class ExportService {
     final font = pw.Font.ttf(await rootBundle.load('assets/fonts/Amiri-Regular.ttf'));
     final doc = pw.Document();
     final money = NumberFormat('#,##0.00', 'en');
+    // الشعار المخصص من الإعدادات (base64) يظهر أعلى العقد
+    pw.Widget? logo;
+    try {
+      final d = await AppDatabase.instance.db;
+      final r = await d.query('settings', where: 'key = ?', whereArgs: ['logo_data'], limit: 1);
+      final b64 = r.isEmpty ? '' : (r.first['value'] as String? ?? '');
+      if (b64.isNotEmpty) {
+        logo = pw.Center(
+            child: pw.Image(pw.MemoryImage(base64Decode(b64)), width: 64, height: 64));
+      }
+    } catch (_) {}
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -84,6 +96,7 @@ class ExportService {
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
+            if (logo != null) ...[logo, pw.SizedBox(height: 4)],
             pw.Center(child: pw.Text(companyName.isEmpty ? 'نظام التقسيط الذكي' : companyName,
                 style: pw.TextStyle(font: font, fontSize: 20, fontWeight: pw.FontWeight.bold))),
             if (branchAddress.isNotEmpty)
