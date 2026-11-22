@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -113,12 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           leading: const Icon(Icons.restore),
           title: const Text('استيراد نسخة احتياطية'),
           subtitle: const Text('لا ينقل الترخيص — بيانات العملاء والعقود فقط'),
-          onTap: () async {
-            // اختيار الملف عبر share dialog في الأندرويد يحتاج file_picker؛
-            // النسخة الأولى تقرأ آخر نسخة تلقائية كتأكيد للمسار.
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('الاستيراد من ملف يُضاف في البناء النهائي (file_picker)')));
-          },
+          onTap: () => _importBackup(context),
         ),
         ListTile(
           leading: const Icon(Icons.lock),
@@ -128,6 +127,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ]),
     );
+  }
+
+  /// استيراد نسخة احتياطية من ملف .dari بكلمة سر النسخة (لا ينقل الترخيص).
+  Future<void> _importBackup(BuildContext context) async {
+    final pass = await _askPassword(context, 'كلمة سر النسخة الاحتياطية');
+    if (pass == null) return;
+    final picked = await FilePicker.platform.pickFiles(
+        dialogTitle: 'اختر ملف النسخة الاحتياطية', withData: true);
+    final file = picked?.files.first;
+    if (file == null) return;
+    final content = file.bytes != null
+        ? utf8.decode(file.bytes!)
+        : file.path != null
+            ? File(file.path!).readAsStringSync()
+            : null;
+    if (content == null) return;
+    try {
+      final n = await context.read<BackupService>().restore(content, password: pass);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('تم الاستيراد: $n سجل')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('فشل الاستيراد — تحقق من الملف وكلمة السر')));
+      }
+    }
   }
 
   Future<String?> _askPassword(BuildContext context, String label) async {

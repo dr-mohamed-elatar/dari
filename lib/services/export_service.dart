@@ -135,6 +135,46 @@ class ExportService {
     await Printing.layoutPdf(onLayout: (_) async => bytes);
   }
 
+  /// طباعة بطاقة الرقم القومي للعميل (الاسم + الرقم + الهاتفات + العنوان).
+  Future<void> printIdCard(Client client) async {
+    final font = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
+    final doc = pw.Document();
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      textDirection: pw.TextDirection.rtl,
+      build: (ctx) => pw.Directionality(
+        textDirection: pw.TextDirection.rtl,
+        child: pw.Center(
+          child: pw.Container(
+            width: 300,
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(border: pw.Border.all(width: 2)),
+            child: pw.Column(mainAxisSize: pw.MainAxisSize.min, children: [
+              pw.Text('بطاقة الرقم القومي',
+                  style: pw.TextStyle(font: pw.Font.ttf(font), fontSize: 18)),
+              pw.SizedBox(height: 12),
+              pw.Text(client.name, style: pw.TextStyle(font: pw.Font.ttf(font), fontSize: 16)),
+              pw.SizedBox(height: 8),
+              pw.Text(crypto.decryptText(client.nationalId),
+                  style: pw.TextStyle(fontSize: 20, letterSpacing: 2)),
+              pw.SizedBox(height: 8),
+              pw.Text('${crypto.decryptText(client.phone)}  ${crypto.decryptText(client.phone2)}',
+                  style: pw.TextStyle(font: pw.Font.ttf(font), fontSize: 12)),
+              pw.SizedBox(height: 4),
+              pw.Text(client.address, style: pw.TextStyle(font: pw.Font.ttf(font), fontSize: 12)),
+            ]),
+          ),
+        ),
+      ),
+    ));
+    final bytes = await doc.save();
+    if (kIsWeb) {
+      await Printing.sharePdf(bytes: bytes, filename: 'id_card.pdf');
+    } else {
+      await Printing.layoutPdf(onLayout: (_) async => bytes);
+    }
+  }
+
   Future<void> shareWhatsApp(String phone, String message) async {
     final p = phone.startsWith('0') ? '2${phone.substring(0)}' : phone;
     final uri = Uri.parse('https://wa.me/$p?text=${Uri.encodeComponent(message)}');

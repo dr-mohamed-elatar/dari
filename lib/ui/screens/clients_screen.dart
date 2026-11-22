@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../services/export_service.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../db/repositories.dart' show DbPage, ClientRepo, GuarantorRepo, ContractRepo, PaymentRepo, SettingsRepo;
 import '../../logic/egyptian_validators.dart';
@@ -91,7 +94,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
                         value: _selected.contains(c.id),
                         onChanged: (v) => setState(
                             () => v == true ? _selected.add(c.id) : _selected.remove(c.id)),
-                        title: Text(c.name),
+                        title: Row(children: [
+                          Expanded(child: Text(c.name)),
+                          IconButton(
+                            tooltip: 'طباعة بطاقة الرقم القومي',
+                            icon: const Icon(Icons.badge_outlined),
+                            onPressed: () =>
+                                context.read<ExportService>().printIdCard(c),
+                          ),
+                        ]),
                         subtitle: Text('${c.phone}  •  ${c.nationalId}'),
                         secondary: const Icon(Icons.person),
                       );
@@ -232,10 +243,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     if (widget.existing == null) {
       final err = lic.checkLimit(info, kind: 'clients', current: await repo.count());
       if (err != null && info != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(backgroundColor: Colors.red, content: Text(err)));
-        }
+        if (mounted) _showLimitBlocked(err);
         return;
       }
     }
@@ -250,5 +258,24 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
       ..notes = _notes.text.trim();
     await repo.upsert(c);
     if (mounted) Navigator.pop(context, true);
+  }
+
+  /// بلوغ حد الباقة: رسالة حمراء + زر ترقية عبر واتساب (الرقم من إعدادات المطور).
+  void _showLimitBlocked(String err) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      backgroundColor: Colors.red,
+      content: Text(err),
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: 'ترقية عبر واتساب',
+        textColor: Colors.white,
+        onPressed: () async {
+          final support = await context.read<SettingsRepo>().get('support_phone');
+          final uri = Uri.parse(
+              'https://wa.me/${support ?? ''}?text=${Uri.encodeComponent('أرغب في ترقية باقة تطبيق داري')}');
+          try { await launchUrl(uri, mode: LaunchMode.externalApplication); } catch (_) {}
+        },
+      ),
+    ));
   }
 }

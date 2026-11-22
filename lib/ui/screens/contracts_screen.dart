@@ -156,6 +156,7 @@ class _ContractFormScreenState extends State<ContractFormScreen> {
   final _interest = TextEditingController(text: '0');
   double _minDownPct = 20;
   PaymentPlan? _preview;
+  List<PaymentPlan> _alternatives = [];
   String? _error;
 
   @override
@@ -183,6 +184,10 @@ class _ContractFormScreenState extends State<ContractFormScreen> {
       if (_error != null) return;
       _preview = computePlan(
           total: total, downPayment: down, months: months, interestPct: interest, startDate: DateTime.now());
+      _alternatives = alternativePlans(
+          total: total, downPayment: down, months: months,
+          minDownPct: _minDownPct, interestPct: interest, startDate: DateTime.now())
+        ..removeWhere((p) => p.monthly == _preview!.monthly && p.schedule.length == _preview!.schedule.length);
     });
   }
 
@@ -380,6 +385,24 @@ class _ContractFormScreenState extends State<ContractFormScreen> {
                 ]),
               ),
             ),
+            if (_alternatives.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('خطط بديلة:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final p in _alternatives)
+                  ActionChip(
+                    label: Text(
+                        'مقدم ${_money.format((double.tryParse(normalizeDigits(_total.text)) ?? 0) - p.financed)} — ${p.schedule.length} شهر × ${_money.format(p.monthly)}'),
+                    onPressed: () => setState(() {
+                      _down.text = ((double.tryParse(normalizeDigits(_total.text)) ?? 0) - p.financed)
+                          .toStringAsFixed(0);
+                      _months.text = '${p.schedule.length}';
+                      _recalc();
+                    }),
+                  ),
+              ]),
+            ],
           ],
           const SizedBox(height: 16),
           FilledButton.icon(icon: const Icon(Icons.save), label: const Text('حفظ العقد'), onPressed: _save),
