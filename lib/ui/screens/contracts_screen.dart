@@ -8,6 +8,8 @@ import '../../logic/installment_calculator.dart';
 import '../../models/models.dart';
 import '../../services/export_service.dart';
 import '../widgets/paged_controls.dart';
+import 'clients_screen.dart' show ClientFormScreen;
+import 'guarantors_screen.dart' show GuarantorFormScreen;
 
 final _money = NumberFormat('#,##0.00', 'ar_EG');
 
@@ -186,18 +188,31 @@ class _ContractFormScreenState extends State<ContractFormScreen> {
 
   Future<void> _pickClient() async {
     final repo = context.read<ClientRepo>();
-    final p = await repo.page(page: 1, pageSize: 100);
+    Future<List<Client>> load() async => (await repo.page(page: 1, pageSize: 100)).rows;
+    var rows = await load();
     if (!mounted) return;
     final picked = await showDialog<Client>(
       context: context,
-      builder: (ctx) => SimpleDialog(
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => SimpleDialog(
         title: const Text('اختيار عميل'),
-        children: p.rows
-            .map((c) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(ctx, c),
-                child: Text('${c.name} — ${c.phone}')))
-            .toList(),
-      ),
+        children: [
+          SimpleDialogOption(
+            onPressed: () async {
+              final created = await Navigator.push<bool>(ctx,
+                  MaterialPageRoute(builder: (_) => const ClientFormScreen()));
+              if (created == true) { rows = await load(); setD(() {}); }
+            },
+            child: const Row(children: [
+              Icon(Icons.person_add, size: 18),
+              SizedBox(width: 8),
+              Text('عميل جديد', style: TextStyle(fontWeight: FontWeight.bold)),
+            ]),
+          ),
+          ...rows.map((c) => SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, c),
+              child: Text('${c.name} — ${c.phone}'))),
+        ],
+      )),
     );
     if (picked != null) setState(() => _client = picked);
   }
