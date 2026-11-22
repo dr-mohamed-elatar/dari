@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'services/ads_service.dart';
+
 import 'db/database.dart';
 import 'db/repositories.dart';
 import 'services/backup_service.dart';
@@ -13,6 +15,7 @@ import 'ui/screens/activation_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AdsService.init();
   await AppDatabase.instance.db; // فتح/إنشاء قاعدة البيانات
   final crypto = CryptoService();
   await crypto.init();

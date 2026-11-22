@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' hide AppState;
+
+import '../services/ads_service.dart';
 
 import 'screens/clients_screen.dart';
 import 'screens/collections_screen.dart';
@@ -56,7 +59,9 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       appBar: AppBar(title: Text(_titles[_index])),
       body: body,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: Column(mainAxisSize: MainAxisSize.min, children: [
+        const AdBanner(),
+        NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
@@ -68,7 +73,41 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(icon: Icon(Icons.bar_chart), label: 'التقارير'),
           NavigationDestination(icon: Icon(Icons.settings), label: 'الإعدادات'),
         ],
-      ),
+        ),
+      ]),
     );
+  }
+}
+
+
+/// بانر إعلاني اختباري
+class AdBanner extends StatefulWidget {
+  const AdBanner({super.key});
+  @override
+  State<AdBanner> createState() => _AdBannerState();
+}
+
+class _AdBannerState extends State<AdBanner> {
+  BannerAd? _ad;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (AdsService.supported) {
+      _ad = AdsService.createBanner(() => setState(() => _loaded = true));
+    }
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded || _ad == null) return const SizedBox.shrink();
+    return SizedBox(height: 50, width: double.infinity, child: AdWidget(ad: _ad!));
   }
 }
