@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../db/repositories.dart' show DbPage, ClientRepo, GuarantorRepo, ContractRepo, PaymentRepo, SettingsRepo;
+import '../../data/beni_suef.dart';
 import '../../logic/egyptian_validators.dart';
 import '../../models/models.dart';
 import '../../services/license_service.dart';
@@ -288,10 +289,20 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
             validator: (v) => (v == null || v.trim().isEmpty) ? null : validateEgyptianPhone(v),
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _address,
-            decoration: const InputDecoration(labelText: 'العنوان', border: OutlineInputBorder()),
-            validator: (v) => validateAddress(v ?? ''),
+          Autocomplete<String>(
+            optionsBuilder: (v) => beniSuefAddressSuggestions(v.text),
+            onSelected: (v) => _address.text = v,
+            fieldViewBuilder: (ctx, ctrl, node, onSubmit) {
+              if (ctrl.text.isEmpty) ctrl.text = _address.text;
+              ctrl.addListener(() => _address.text = ctrl.text);
+              return TextFormField(
+                  controller: ctrl,
+                  focusNode: node,
+                  decoration: const InputDecoration(
+                      labelText: 'العنوان (إكمال تلقائي لقرى ومراكز بني سويف)',
+                      border: OutlineInputBorder()),
+                  validator: (v) => validateAddress(v ?? ''));
+            },
           ),
           const SizedBox(height: 12),
           TextFormField(
