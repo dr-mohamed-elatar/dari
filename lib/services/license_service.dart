@@ -153,6 +153,14 @@ class LicenseService {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// إلغاء الترخيص الحالي على هذا الجهاز (إدارة الأجهزة).
+  Future<void> revoke() async {
+    final d = await _db;
+    final info = await current();
+    await _log('إلغاء ترخيص يدوي — بصمة ${info?.deviceFp.substring(0, 8) ?? '؟'}');
+    await d.delete('licenses', where: 'key = ?', whereArgs: [_currentKey]);
+  }
+
   /// التحقق من الحدود (0 = بلا حد)
   String? checkLimit(LicenseInfo? info, {required String kind, required int current}) {
     if (info == null) return 'النسخة غير مفعّلة';
