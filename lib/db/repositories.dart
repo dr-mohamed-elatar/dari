@@ -31,6 +31,7 @@ class ClientRepo {
     int pageSize = 20,
     String query = '',
     bool hideSamples = true,
+    String debtFilter = 'all', // all | overdue | clear
   }) async {
     final d = await AppDatabase.instance.db;
     final where = <String>[];
@@ -47,6 +48,15 @@ class ClientRepo {
       if (hideSamples) where.add('is_sample = 0');
       where.add('(name LIKE ? OR national_id = ? OR phone = ? OR national_id LIKE ?)');
       args.addAll([q, enc, enc, q]);
+    }
+    if (debtFilter == 'overdue') {
+      where.add('''EXISTS (SELECT 1 FROM contracts ct JOIN installments i ON i.contract_id = ct.id
+          WHERE ct.client_id = clients.id AND i.status != 'مدفوع' AND i.due_date < ?)''');
+      args.add(DateTime.now().toIso8601String().substring(0, 10));
+    } else if (debtFilter == 'clear') {
+      where.add('''NOT EXISTS (SELECT 1 FROM contracts ct JOIN installments i ON i.contract_id = ct.id
+          WHERE ct.client_id = clients.id AND i.status != 'مدفوع' AND i.due_date < ?)''');
+      args.add(DateTime.now().toIso8601String().substring(0, 10));
     }
     final w = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
     final total = (await d.rawQuery('SELECT COUNT(*) c FROM clients $w', args)).first['c'] as int;

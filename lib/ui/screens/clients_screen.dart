@@ -19,6 +19,9 @@ class ClientsScreen extends StatefulWidget {
 class _ClientsScreenState extends State<ClientsScreen> {
   int _page = 1, _size = 25;
   String _query = '';
+  String _debtFilter = 'all'; // الكل / المتأخرون / المسددون
+  bool _grid = false;
+  bool _showSamples = false;
   final _selected = <String>{};
   Future<DbPage<Client>>? _future;
 
@@ -29,7 +32,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
   }
 
   void _load() {
-    _future = context.read<ClientRepo>().page(page: _page, pageSize: _size, query: _query);
+    _future = context.read<ClientRepo>().page(
+        page: _page, pageSize: _size, query: _query,
+        hideSamples: !_showSamples, debtFilter: _debtFilter);
     setState(() {});
   }
 
@@ -61,6 +66,39 @@ class _ClientsScreenState extends State<ClientsScreen> {
             },
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(children: [
+            Expanded(
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'all', label: Text('الكل')),
+                  ButtonSegment(value: 'overdue', label: Text('المتأخرون')),
+                  ButtonSegment(value: 'clear', label: Text('المسددون')),
+                ],
+                selected: {_debtFilter},
+                onSelectionChanged: (v) => setState(() {
+                  _debtFilter = v.first;
+                  _page = 1;
+                  _load();
+                }),
+              ),
+            ),
+            IconButton(
+              tooltip: _grid ? 'عرض جدول' : 'عرض شبكة',
+              icon: Icon(_grid ? Icons.table_rows : Icons.grid_view),
+              onPressed: () => setState(() => _grid = !_grid),
+            ),
+            IconButton(
+              tooltip: _showSamples ? 'إخفاء العينات' : 'إظهار العينات',
+              icon: Icon(_showSamples ? Icons.visibility : Icons.visibility_off),
+              onPressed: () => setState(() {
+                _showSamples = !_showSamples;
+                _load();
+              }),
+            ),
+          ]),
+        ),
         if (_selected.isNotEmpty)
           ListTile(
             leading: Text('محدد: ${_selected.length}'),
@@ -84,6 +122,53 @@ class _ClientsScreenState extends State<ClientsScreen> {
               if (!snap.hasData) return const Center(child: CircularProgressIndicator());
               final p = snap.data!;
               if (p.rows.isEmpty) return const Center(child: Text('لا يوجد عملاء'));
+              if (_grid) {
+                return Column(children: [
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(8),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 220, childAspectRatio: 1.4),
+                      itemCount: p.rows.length,
+                      itemBuilder: (ctx, i) {
+                        final c = p.rows[i];
+                        return Card(
+                          child: InkWell(
+                            onTap: () => setState(() => _selected.contains(c.id)
+                                ? _selected.remove(c.id)
+                                : _selected.add(c.id)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Row(children: [
+                                  Icon(Icons.person, color: _selected.contains(c.id) ? Colors.teal : null),
+                                  const SizedBox(width: 4),
+                                  Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                ]),
+                                const Spacer(),
+                                Text(c.phone, style: Theme.of(ctx).textTheme.bodySmall),
+                                Text(c.address, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(ctx).textTheme.bodySmall),
+                              ]),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  PagedControls(
+                      page: p,
+                      onPage: (v) {
+                        _page = v;
+                        _load();
+                      },
+                      onPageSize: (v) {
+                        _size = v;
+                        _page = 1;
+                        _load();
+                      }),
+                ]);
+              }
               return Column(children: [
                 Expanded(
                   child: ListView.builder(
